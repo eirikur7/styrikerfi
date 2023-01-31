@@ -47,7 +47,7 @@ typedef struct _Thread {
 Thread _threads[MAX_THREADS] = {{0}};
 
 /* TODO: Add global variables if needed. */
-
+struct _Queue main_queue = {NULL, NULL};
 /*
  * Adds a new, waiting thread.
  * The new thread is in state WAITING and not yet inserted in a ready queue.
@@ -73,7 +73,25 @@ void _enqueue(Queue *queue, int data)
     (void)queue;
     (void)data;
 
-    // TODO: Implement
+    struct _QueueItem *item = (struct _QueueItem *)malloc(sizeof(struct _QueueItem));
+
+    item->data = data;
+    item->next = NULL;
+
+    if (queue->head == NULL) {
+        queue->head = item;
+        queue->tail = item;
+        return;
+    } else {
+        queue->tail->next = item;
+        queue->tail = item;
+    }
+
+    // struct QueueItem *lastel = queue->head;
+    // while (lastel->next)
+    //     lastel = lastel->next;
+
+    // lastel->next = item;
 }
 
 /*
@@ -84,13 +102,25 @@ int _dequeue(Queue *queue)
 {
     (void)queue;
 
+    if (queue->head == NULL) {
+        return -1;
+    }
+
     // TODO: Implement
-    return -1;
+    QueueItem *headtbr = queue->head;
+    queue->head = queue->head->next;
+
+    // We get the value from the list head first, as after the free, the value is no longer available
+    int val = headtbr->data;
+    free(headtbr);
+    return val;
+
 }
 
 void initScheduler()
 {
     // TODO: Implement if you need to initialize any global variables you added
+
 }
 
 /*
@@ -101,6 +131,10 @@ void onThreadReady(int threadId)
     (void)threadId;
 
     // TODO: Implement
+    _threads[threadId].state = STATE_READY;
+    _enqueue(&main_queue, threadId);
+
+    
 }
 
 /*
@@ -112,6 +146,10 @@ void onThreadPreempted(int threadId)
     (void)threadId;
 
     // TODO: Implement
+    _threads[threadId].state = STATE_READY;
+    _enqueue(&main_queue, threadId);
+
+    
 }
 
 /*
@@ -122,6 +160,8 @@ void onThreadWaiting(int threadId)
     (void)threadId;
 
     // TODO: Implement
+    _threads[threadId].state = STATE_WAITING;
+
 }
 
 /*
@@ -130,7 +170,13 @@ void onThreadWaiting(int threadId)
 int scheduleNextThread()
 {
     // TODO: Implement
-    return 999;
+    if (main_queue.head == NULL) {
+        return -1;
+    }
+
+    int nextThread = _dequeue(&main_queue);
+    _threads[nextThread].state = STATE_RUNNING;
+    return nextThread;
 }
 
 
