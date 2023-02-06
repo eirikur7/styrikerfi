@@ -193,7 +193,7 @@ int scheduleNextThread()
     }
 
     if (no_low_pri == 1) {
-        num_run_list[queue_num] = 4;
+        // num_run_list[queue_num] = 0;
         int nextThread = _dequeue(&main_queue[queue_num]);
          _threads[nextThread].state = STATE_RUNNING;
         return nextThread; 
