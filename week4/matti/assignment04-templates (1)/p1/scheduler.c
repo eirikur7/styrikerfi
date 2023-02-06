@@ -168,7 +168,7 @@ void onThreadWaiting(int threadId)
 int scheduleNextThread()
 {
     // TODO: Implement
-    int no_low_pri = 1; 
+    int no_low_pri = 0; 
     int queue_num = -1;
 
     for (int i = HIGHEST_PRIORITY; i >= 0; i--) {
@@ -181,33 +181,34 @@ int scheduleNextThread()
             }
             else {
                 num_run_list[i] = 0;
-                queue_num = i;
-                // if (no_low_pri == 0) {
-                //     no_low_pri = 1;
-                //     queue_num = i;
-                // }
+                if (no_low_pri == 0) {
+                    no_low_pri = 1;
+                    queue_num = i;
+                }
 
             }
             
         }
 
     }
+
     if (no_low_pri == 1) {
-        //num_run_list[queue_num] = 4;
+        num_run_list[queue_num] = 4;
         int nextThread = _dequeue(&main_queue[queue_num]);
          _threads[nextThread].state = STATE_RUNNING;
         return nextThread; 
     }
 
+    for (int i = 0; i < HIGHEST_PRIORITY; i++) {
+        num_run_list[i] = 0;
+    }
+
+
+    
+
     return -1;
 
-    // if (main_queue[i].head == NULL) {
-    //     return -1;
-    // }
 
-    // int nextThread = _dequeue(&main_queue[0]);
-    // _threads[nextThread].state = STATE_RUNNING;
-    // return nextThread;
 }
 
 
