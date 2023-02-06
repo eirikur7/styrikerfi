@@ -5,31 +5,19 @@
 #include <assert.h>
 #include <stdio.h>
 
+// Single queue item
 typedef struct _QueueItem {
-    /*
-     * The data of this item.
-     */
     int data;
-    /*
-     * The next item in the queue.
-     * NULL if there is no next item.
-     */
     struct _QueueItem *next;
 } QueueItem;
 
+// The entire queue
 typedef struct _Queue {
-    /*
-     * The first item of the queue.
-     * NULL if the queue is empty.
-     */
     QueueItem *head;
-    /*
-     * The last item of the queue.
-     * undefined if the queue is empty.
-     */
     QueueItem *tail;
 } Queue;
 
+// Define allowed thread states
 typedef enum _ThreadState {
     STATE_UNUSED = 0, // This entry in the _threads array is unused.
 
@@ -39,28 +27,48 @@ typedef enum _ThreadState {
     STATE_WAITING     // The thread is blocked and should not be on a ready queue
 } ThreadState;
 
+
+// Thread array
 typedef struct _Thread {
     int threadId;
     ThreadState state;
+    /*
+     * Range: 0 ... HIGHEST_PRIORITY (including)
+     * HIGHEST_PRIORITY is highest priority
+     */
+    int priority;
 } Thread;
 
 Thread _threads[MAX_THREADS] = {{0}};
 
 /* TODO: Add global variables if needed. */
 struct _Queue main_queue = {NULL, NULL};
+struct _Queue ready_queue[HIGHEST_PRIORITY + 1] = {{NULL, NULL}};
+
+
+
 /*
  * Adds a new, waiting thread.
- * The new thread is in state WAITING and not yet inserted in a ready queue.
  */
-int startThread(int threadId)
+int startThread(int threadId, int priority)
 {
-    if (((threadId < 0) || (threadId >= MAX_THREADS) ||
-        (_threads[threadId].state != STATE_UNUSED))) {
+    printf("-- startThread: starting thread with id %d\n", threadId);
+    if (
+        ((threadId < 0) || 
+        (threadId >= MAX_THREADS) ||
+        (_threads[threadId].state != STATE_UNUSED))
+        ||
+        (priority < 0) || (priority > HIGHEST_PRIORITY)
+        ) 
+        {
+        printf("-- StartThread: Error starting thread\n");
         return -1;
-    }
+        }
 
     _threads[threadId].threadId = threadId;
     _threads[threadId].state    = STATE_WAITING;
+    _threads[threadId].priority = priority;
+    printf("-- startThread: thread %d in waiting state\n", threadId);
     return 0;
 }
 
@@ -70,9 +78,11 @@ int startThread(int threadId)
  */
 void _enqueue(Queue *queue, int data)
 {
+    // printf("-- enqueue: inserting thread id %d\n", data);
     (void)queue;
     (void)data;
 
+    // TODO: Implement
     struct _QueueItem *item = (struct _QueueItem *)malloc(sizeof(struct _QueueItem));
 
     item->data = data;
@@ -86,12 +96,7 @@ void _enqueue(Queue *queue, int data)
         queue->tail->next = item;
         queue->tail = item;
     }
-
-    // struct QueueItem *lastel = queue->head;
-    // while (lastel->next)
-    //     lastel = lastel->next;
-
-    // lastel->next = item;
+    // printf("-- enqueue: successfull insertion\n");
 }
 
 /*
@@ -105,7 +110,7 @@ int _dequeue(Queue *queue)
     if (queue->head == NULL) {
         return -1;
     }
-
+    // printf("-- dequeue: removing thread id %d\n", queue->head->data);
     // TODO: Implement
     QueueItem *headtbr = queue->head;
     queue->head = queue->head->next;
@@ -113,14 +118,19 @@ int _dequeue(Queue *queue)
     // We get the value from the list head first, as after the free, the value is no longer available
     int val = headtbr->data;
     free(headtbr);
+    // printf("-- dequeue: successfull removal\n");
     return val;
-
 }
 
 void initScheduler()
 {
     // TODO: Implement if you need to initialize any global variables you added
+    printf("-- initScheduler: initializing scheduler\n");
 
+    for (int i = 0; i < HIGHEST_PRIORITY; i++) {
+        ready_queue[i].head = NULL;
+        ready_queue[i].tail = NULL;
+    }
 }
 
 /*
@@ -131,10 +141,9 @@ void onThreadReady(int threadId)
     (void)threadId;
 
     // TODO: Implement
-    _threads[threadId].state = STATE_READY;
-    _enqueue(&main_queue, threadId);
-
-    
+    printf("-- onThreadReady: thread %d is ready\n", threadId);
+    _threads[threadId].state = STATE_READY; // Change the state to ready
+    _enqueue(&ready_queue[_threads[threadId].priority], threadId);        // push to the queue
 }
 
 /*
@@ -146,10 +155,9 @@ void onThreadPreempted(int threadId)
     (void)threadId;
 
     // TODO: Implement
+    printf("-- onThreadPreempted: thread %d is preempted\n", threadId);
     _threads[threadId].state = STATE_READY;
-    _enqueue(&main_queue, threadId);
-
-    
+    _enqueue(&ready_queue[_threads[threadId].priority], threadId);
 }
 
 /*
@@ -160,8 +168,8 @@ void onThreadWaiting(int threadId)
     (void)threadId;
 
     // TODO: Implement
+    printf("-- onThreadWaiting: thread %d is waiting\n", threadId);
     _threads[threadId].state = STATE_WAITING;
-
 }
 
 /*
@@ -170,12 +178,20 @@ void onThreadWaiting(int threadId)
 int scheduleNextThread()
 {
     // TODO: Implement
-    if (main_queue.head == NULL) {
-        return -1;
+    int priority = HIGHEST_PRIORITY;
+    for (int i = HIGHEST_PRIORITY; i >= 0; i--) {
+        printf("-- scheduleNextThread: priority is %d\n", i);
+        if (ready_queue[i].head != NULL) {
+            priority = i;
+            break;
+        }
     }
+    printf("-- scheduleNextThread: priority is %d\n", priority);
+    
 
-    int nextThread = _dequeue(&main_queue);
+    int nextThread = _dequeue(&ready_queue[priority]);
     _threads[nextThread].state = STATE_RUNNING;
+    printf("-- scheduleNextThread: thread %d is scheduled\n", nextThread);
     return nextThread;
 }
 
