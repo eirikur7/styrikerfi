@@ -1,5 +1,3 @@
-// Authors: marteinns19,eirkurb19 [replace with your RU login IDs]
-// Group: 69 [replace with your group number]
 #include "scheduler.h"
 #include <stdlib.h>
 #include <assert.h>
@@ -42,25 +40,34 @@ typedef enum _ThreadState {
 typedef struct _Thread {
     int threadId;
     ThreadState state;
+    /*
+     * Range: 0 ... HIGHEST_PRIORITY (including)
+     * HIGHEST_PRIORITY is highest priority
+     */
+    int priority;
 } Thread;
 
 Thread _threads[MAX_THREADS] = {{0}};
 
 /* TODO: Add global variables if needed. */
-struct _Queue main_queue = {NULL, NULL};
+struct _Queue main_queue[HIGHEST_PRIORITY+1] = {{NULL,NULL}};
+int num_run_list[HIGHEST_PRIORITY+1] = {0};
+
 /*
  * Adds a new, waiting thread.
- * The new thread is in state WAITING and not yet inserted in a ready queue.
  */
-int startThread(int threadId)
+int startThread(int threadId, int priority)
 {
     if (((threadId < 0) || (threadId >= MAX_THREADS) ||
-        (_threads[threadId].state != STATE_UNUSED))) {
+        (_threads[threadId].state != STATE_UNUSED)) ||
+        (priority < 0) || (priority > HIGHEST_PRIORITY)) {
+
         return -1;
     }
 
     _threads[threadId].threadId = threadId;
     _threads[threadId].state    = STATE_WAITING;
+    _threads[threadId].priority = priority;
     return 0;
 }
 
@@ -70,10 +77,14 @@ int startThread(int threadId)
  */
 void _enqueue(Queue *queue, int data)
 {
-    (void)queue;
-    (void)data;
 
+    assert(queue != NULL);
+
+    // TODO: Implement
     struct _QueueItem *item = (struct _QueueItem *)malloc(sizeof(struct _QueueItem));
+    if (item == NULL) {
+        return;
+    }
 
     item->data = data;
     item->next = NULL;
@@ -83,15 +94,10 @@ void _enqueue(Queue *queue, int data)
         queue->tail = item;
         return;
     } else {
+        assert(queue->tail != NULL);
         queue->tail->next = item;
         queue->tail = item;
     }
-
-    // struct QueueItem *lastel = queue->head;
-    // while (lastel->next)
-    //     lastel = lastel->next;
-
-    // lastel->next = item;
 }
 
 /*
@@ -100,9 +106,9 @@ void _enqueue(Queue *queue, int data)
  */
 int _dequeue(Queue *queue)
 {
-    (void)queue;
+    assert(queue != NULL);
 
-    if (queue->head == NULL) {
+        if (queue->head == NULL) {
         return -1;
     }
 
@@ -114,13 +120,11 @@ int _dequeue(Queue *queue)
     int val = headtbr->data;
     free(headtbr);
     return val;
-
 }
 
 void initScheduler()
 {
     // TODO: Implement if you need to initialize any global variables you added
-
 }
 
 /*
@@ -128,13 +132,11 @@ void initScheduler()
  */
 void onThreadReady(int threadId)
 {
-    (void)threadId;
+    assert((threadId >= 0) && (threadId < MAX_THREADS));
+    assert(_threads[threadId].state == STATE_WAITING);
 
-    // TODO: Implement
     _threads[threadId].state = STATE_READY;
-    _enqueue(&main_queue, threadId);
-
-    
+    _enqueue(&main_queue[_threads[threadId].priority], threadId);
 }
 
 /*
@@ -143,13 +145,10 @@ void onThreadReady(int threadId)
  */
 void onThreadPreempted(int threadId)
 {
-    (void)threadId;
+    assert((threadId >= 0) && (threadId < MAX_THREADS));
 
-    // TODO: Implement
     _threads[threadId].state = STATE_READY;
-    _enqueue(&main_queue, threadId);
-
-    
+    _enqueue(&main_queue[_threads[threadId].priority], threadId);
 }
 
 /*
@@ -157,11 +156,10 @@ void onThreadPreempted(int threadId)
  */
 void onThreadWaiting(int threadId)
 {
-    (void)threadId;
+    assert((threadId >= 0) && (threadId < MAX_THREADS));
+    assert(_threads[threadId].state == STATE_RUNNING);
 
-    // TODO: Implement
     _threads[threadId].state = STATE_WAITING;
-
 }
 
 /*
@@ -170,13 +168,46 @@ void onThreadWaiting(int threadId)
 int scheduleNextThread()
 {
     // TODO: Implement
-    if (main_queue.head == NULL) {
-        return -1;
+    int no_low_pri = 1; 
+    int queue_num = -1;
+
+    for (int i = HIGHEST_PRIORITY; i >= 0; i--) {
+        if (main_queue[i].head != NULL) {
+            if (num_run_list[i] < 4) {
+                num_run_list[i]++;
+                int nextThread = _dequeue(&main_queue[i]);
+                _threads[nextThread].state = STATE_RUNNING;
+                return nextThread; 
+            }
+            else {
+                num_run_list[i] = 0;
+                queue_num = i;
+                // if (no_low_pri == 0) {
+                //     no_low_pri = 1;
+                //     queue_num = i;
+                // }
+
+            }
+            
+        }
+
+    }
+    if (no_low_pri == 1) {
+        //num_run_list[queue_num] = 4;
+        int nextThread = _dequeue(&main_queue[queue_num]);
+         _threads[nextThread].state = STATE_RUNNING;
+        return nextThread; 
     }
 
-    int nextThread = _dequeue(&main_queue);
-    _threads[nextThread].state = STATE_RUNNING;
-    return nextThread;
+    return -1;
+
+    // if (main_queue[i].head == NULL) {
+    //     return -1;
+    // }
+
+    // int nextThread = _dequeue(&main_queue[0]);
+    // _threads[nextThread].state = STATE_RUNNING;
+    // return nextThread;
 }
 
 
