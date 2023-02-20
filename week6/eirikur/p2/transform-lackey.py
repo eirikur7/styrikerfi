@@ -28,4 +28,5 @@ for line in sys.stdin:
         virtual_address, size = parts[1].split(',')
         virtual_address = int(virtual_address, 16)
         virtual_page = virtual_address // PAGE_SIZE
-        print(f"Virtual address: {virtual_address} Virtual page: {virtual_page}")
+
+        sys.stdout.write(f"{virtual_page}\n")
